@@ -146,8 +146,3 @@ if __name__ == "__main__":
 
 
 
-# refernces: 
-# https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api?apiVersion=2022-11-28
-# https://stackoverflow.com/questions/70026376/how-can-i-use-the-github-rest-api-to-access-a-files-data-in-a-private-repositor
-# https://docs.python.org/3/library/xml.etree.elementtree.html
-# https://www.datacamp.com/tutorial/python-xml-elementtree
