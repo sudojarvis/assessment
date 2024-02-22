@@ -9,47 +9,91 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+import requests
+
+def authenticate_with_github(client_id, client_secret):
+
+    # Obtaining the authorization code
+    auth_url = 'https://github.com/login/oauth/authorize'
+    params = {
+        'client_id': client_id,
+        'scope': 'repo',  
+    }
+    response = requests.get(auth_url, params=params)
+    print("Please visit this URL and authorize the application:", response.url)
+
+    #example of the authorization code
+    # https://github.com/sudojarvis?code=0b5e2644c4054eb0c226
+    # 0b5e2644c4054eb0c226 is the authorization code
+
+
+    authorization_code = input("Enter the authorization code: ")
+    #--------------------------------------------------------------------
+
+
+    # Exchanging the authorization code for an access token
+    token_url = 'https://github.com/login/oauth/access_token'
+    data = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'code': authorization_code,
+    }
+    headers = {
+        'Accept': 'application/json',
+    }
+
+    # Send POST request to the URL
+    response = requests.post(token_url, data=data, headers=headers)
+    access_token = response.json().get('access_token')
+
+    # Check if the access token was obtained
+    if access_token:
+        print("Successfully authenticated with GitHub!")
+        return access_token
+    else:
+        print("Authentication failed.")
+        return None
+
+
+
+
 
 #this function will get the list of repositories
-def repoList(owner):
+def repoList(access_token, owner='user'):
 
-    url = f"https://api.github.com/users/{owner}/repos"  # f-strings
- 
-    # Set the headers
-    # the headers are used to authenticate the user
-    headers = {
-        'Authorization': f"token {os.getenv('ACCESS_TOKEN')}",
-        'Accept': 'application/vnd.github.v3+json'
-    }
-
-    
-    repo_list = []
-
-    response = requests.get(url, headers=headers,timeout=5) # Send GET request to the URL
-    
-    # Check if the request was successful
-    if response.status_code == 200:
-        print('Success')
-        for repo in response.json(): # Loop through the JSON response
-            repo_list.append(repo['name']) # Append the name of the repository to the list
-        return repo_list # Return the list of repositories
+    if access_token:
+        # Set the headers
+        headers = { 'Authorization': f'token {access_token}',
+                    'Accept': 'application/vnd.github.v3+json'}
+                   
+        # response = requests.get('https://api.github.com/user/repos', headers=headers)
+        response = requests.get(f'https://api.github.com/users/{owner}/repos', headers=headers) # Send GET request to the URL
+        if response.status_code == 200:
+            repo_list = []
+            for repo in response.json():
+                repo_list.append(repo['name'])
+            return repo_list
+        else:
+            print('Error')
+            return None
     else:
-        print('Error') # Print an error message
+        print("Authentication failed.")
         return None
+ 
+
+
+
+
+#this function will get the path of folders and files in the repository
+def get_path(access_token, owner, repository, path=''):
     
-
-
-
-#this function will get the files from the repository
-def get_path(owner, repository, path=''):
-    
-    url = f"https://api.github.com/repos/{owner}/{repository}/contents/{path}" # f-strings to insert the owner, repository, and path into the URL
-
+   
     # Set the headers
-    headers = {
-        'Authorization': f"token {os.getenv('ACCESS_TOKEN')}",
-        'Accept': 'application/vnd.github.v3+json'
-    }
+    headers = { 'Authorization': f'token {access_token}',
+            'Accept': 'application/vnd.github.v3+json'}
+            
+
+    url = f"https://api.github.com/repos/{owner}/{repository}/contents/{path}" # f-strings to insert the owner, repository, and path into the URL
 
     response = requests.get(url, headers=headers,timeout=5) # Send GET request to the URL
 
@@ -69,13 +113,13 @@ def get_path(owner, repository, path=''):
 #If it is a folder, we recursively call the function to get the files in the folder
 #the using the xml.etree.ElementTree to parse the xml file
 
-def parser(owner, repo, path='', visited=None):
+def parser(access_token, owner, repo, path='', visited=None):
     # maintaining a set of visited folders
     # to avoid revisiting the same folder
     if visited is None:  
         visited = set()
 
-    path = get_path(owner, repo, path) # Get the path of the files in the repository
+    path = get_path(owner=owner, repository=repo, path=path, access_token=access_token) # Get the files in the repository
     if path is not None:  
         for file in path:
             if file['type'] == 'file':
@@ -85,7 +129,7 @@ def parser(owner, repo, path='', visited=None):
                     
                     # Set the headers
                     headers = {
-                        'Authorization': f"token {os.getenv('ACCESS_TOKEN')}",
+                        'Authorization': f"token {access_token}", # f-strings to insert the access token into the header
                         'Accept': 'application/vnd.github.v3+json'
                     }
 
@@ -115,25 +159,46 @@ def parser(owner, repo, path='', visited=None):
                 if file['name'] not in visited:
                     
                     visited.add(file['name']) # Add the folder to the set of visited folders
-                    parser(owner, repo, full_path, visited) # Recursively call the function to get the files in the folder
+                    parser(access_token, owner, repo, full_path, visited) # Recursively call the function to get the files in the folder
     else:
         print("No files found")
 
 
-# start = time.time()
-# parser('shopizer-ecommerce', 'shopizer', '')
-# end = time.time()
-# print(end - start)
 
+        
+# this is the main function that will call the other functions
 def main():
-    input_owner = input("Enter the owner of the repository: ")
-    input_repo = input("Enter the name of the repository: ")
+
     start   = time.time()
-    repo_list_names = repoList(input_owner)
+    # reading the client_id and client_secret from the .env file
+    client_id = os.getenv('CLIENT_ID')
+    client_secret = os.getenv('CLIENT_SECRET')
+
+    #authenticate with github and get the access token
+    access_token = authenticate_with_github(client_id, client_secret)
+    print("-------------------------------")
+    if access_token:
+        print("Authentication successful. Access token:", access_token)
+    else:
+        print("Authentication failed.")
+    print("-------------------------------")
+
+
+    #this is the owner of the repository
+    input_owner = 'shopizer-ecommerce'
+
+    #get the list of repositories
+    repo_list_names = repoList( access_token, owner=input_owner)
     print(repo_list_names)
-    # input_repo =random.choice(repo_list_names)
-    print(input_repo)
-    parser(input_owner, input_repo, '')
+    print("-------------------------------")
+
+    #select the repository to parse from the list of repositories
+    input_repo = input("Select the repository to parse: ")
+    print("-------------------------------")
+
+    #parse the repository
+    parser(access_token, input_owner, input_repo, '')
+
     end = time.time()
     print(end - start)
 
