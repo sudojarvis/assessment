@@ -148,9 +148,10 @@ def parser(access_token, owner, repo, path='', visited=None):
                     artifact_id = root.find(f'.//{namespace}artifactId').text
                     version = root.find(f'.//{namespace}version').text
                     print("path:", file['path'])
-                    print("Group ID:", group_id)
-                    print("Artifact ID:", artifact_id)
-                    print("Version:", version)
+                    # print("Group ID:", group_id)
+                    # print("Artifact ID:", artifact_id)
+                    # print("Version:", version)
+                    print(f"{group_id}: {version}")
                     print()
             else:
                 #get the path of the folder
