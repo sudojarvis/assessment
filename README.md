@@ -43,3 +43,10 @@ POML file found.
 path: sm-shop/pom.xml
 com.shopizer: 3.2.5
 ```
+
+github Oauth settings:
+
+```bash
+Homepage URL: http://github.com
+Authorization callback URL: http://github.com/sudojarvis
+```
